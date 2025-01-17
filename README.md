@@ -84,6 +84,13 @@ your server setup.</p>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+### Changelog
+
+<h3>1.0.5</h3>
+<ul>
+  <li>Added ability to toggle using Discord API entirely and just use a standard payrate for all players regardless of rank.</li>
+</ul>
+
 ### Installation
 
 1. Download the contents of this repo into a ZIP file and extract it as a folder
@@ -99,6 +106,9 @@ your server setup.</p>
         DeleteRecordOnEndShift = false, -- Toggle deleting the shift record in MySQL when the player ends their shift.
         CacheRefreshInterval = 3600000, -- Interval for refreshing the cache for player wage rates (set at 1 hour in milliseconds as default)
 
+        UseDiscordRoles = false,
+        StaticPayratePerMinute = 1.0,
+        
         --====================== DISCORD ROLES ======================--
         DiscordRoles = {
             [1] = {
