@@ -42,6 +42,17 @@ function GetFiveMIdentifier(src)
     return nil -- Return nil if no player FiveM identifier is found (huh?)
 end
 
+-- Function to get the FiveM license identifier for a player
+function GetLicenseIdentifier(src)
+    local identifiers = GetPlayerIdentifiers(src)
+    for _, id in ipairs(identifiers) do
+        if string.sub(id, 1, string.len("license:")) == "license:" then
+            return id
+        end
+    end
+    return nil -- Return nil if no player FiveM license identifier is found (huh?) 
+end
+
 -- Function to calculate the players specific wage per minute depending on their role
 -- and choosing the specific wage that is the highest in value if the user has more
 -- than one role
@@ -51,7 +62,7 @@ function GetWagePerMinute(src)
     end
 
     local wagePerMinute = 0 -- Default wage per minute
-    
+
     if Config.UseDiscordRoles then
         local playerRoles = exports.night_discordapi:GetDiscordMemberRoles(src)
     
@@ -119,17 +130,32 @@ function UpdateShiftRecord(src, playerId, startTime, endTime, payment, wagePerMi
 end
 
 -- Function to pay the player for the shift they have just ended
-function PayPlayerForShift(src, payment, minutesWorked)
+function PayPlayerForShift(src, payment, minutesWorked, licenseId)
     if Config.Framework == "QB" then
         local QBCore = exports['qb-core']:GetCoreObject()
         local player = QBCore.Functions.GetPlayer(src)
 
-        player.Functions.AddMoney('bank', payment, 'Paycheck') -- Feel free to change the reason i.e. ("Police Pay")
+        -- Check to see if the player object is nil, if so manually update database with increase in money
+        -- this will usually happen on player disconnect
+        if player then
+            player.Functions.AddMoney('bank', payment, 'Paycheck') -- Feel free to change the reason i.e. ("Police Pay")
 
-        -- Here is an example of also adding transaction data to your banking system (whichever one you use)
-        -- this is optional of course
-        --TriggerEvent('okokBanking:AddTransferTransactionFromSocietyToP', payment, "GOV", "State of San Andreas", playerId, player.PlayerData.charinfo.firstname..' '..player.PlayerData.charinfo.lastname)
-        --TriggerClientEvent('okokBanking:updateTransactions', src, player.PlayerData.money.bank, player.PlayerData.money.cash)
+            -- Here is an example of also adding transaction data to your banking system (whichever one you use)
+            -- this is optional of course
+            --TriggerEvent('okokBanking:AddTransferTransactionFromSocietyToP', payment, "GOV", "State of San Andreas", playerId, player.PlayerData.charinfo.firstname..' '..player.PlayerData.charinfo.lastname)
+            --TriggerClientEvent('okokBanking:updateTransactions', src, player.PlayerData.money.bank, player.PlayerData.money.cash)
+        else
+            exports['oxmysql']:execute('UPDATE players SET money = JSON_SET(money, "$.bank", JSON_EXTRACT(money, "$.bank") + @payment) WHERE license = @licenseID', {
+                ['@payment'] = payment, 
+                ['@licenseID'] = licenseId
+            }, function(result)
+                if result then
+                    print('[INFO] Player disconnected and object lost, paid manually via ' .. licenseId .. '.')
+                else
+                    print('[ERROR] Failed to manually update the players money ' .. licenseId)
+                end
+            end)
+        end
 
     elseif Config.Framework == "ESX" then
         local ESX = exports["es_extended"]:getSharedObject()
@@ -181,6 +207,7 @@ end)
 AddEventHandler('playerDropped', function(reason)
     local src = source
     local playerId = GetFiveMIdentifier(src)
+    local licenseId = GetLicenseIdentifier(src)
     local endTime = os.time() -- Shift end time (time of disconnect)
 
     if Config.Debug then
@@ -188,7 +215,7 @@ AddEventHandler('playerDropped', function(reason)
     end
 
     -- Process the player shift as normal if exists with the end time on disconnect
-    ProcessPlayerShiftPaycheck(src, playerId, endTime)
+    ProcessPlayerShiftPaycheck(src, playerId, endTime, licenseId)
 
     -- Clear the player's cache data
     wageCache[src] = nil
@@ -239,7 +266,7 @@ function StartTrackingPlayerShift(src, playerId)
 end
 
 -- Function to calculate and process the specific players paycheck
-function ProcessPlayerShiftPaycheck(src, playerId, endTime)
+function ProcessPlayerShiftPaycheck(src, playerId, endTime, licenseId)
     local endTime = endTime or os.time() -- Shift end time
     local wagePerMinute = GetWagePerMinute(src) -- Calculate wage per minute based on Discord role
 
@@ -253,7 +280,7 @@ function ProcessPlayerShiftPaycheck(src, playerId, endTime)
             local payment = minutesWorked * wagePerMinute
 
             if payment > 0 then
-                PayPlayerForShift(src, payment, minutesWorked)
+                PayPlayerForShift(src, payment, minutesWorked, licenseId)
             end
 
             print('[INFO] Shift ended for player ' .. playerId .. '. Paid: ' .. Config.PaymentCurrency .. payment .. '.')
