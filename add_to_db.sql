@@ -1,4 +1,4 @@
-CREATE TABLE `ers_player_shifts` (
+CREATE TABLE `ers_shift_times` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `player_id` VARCHAR(30) NOT NULL,
     `start_time` VARCHAR(20) NOT NULL,
