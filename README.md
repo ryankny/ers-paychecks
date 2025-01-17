@@ -106,8 +106,8 @@ your server setup.</p>
         DeleteRecordOnEndShift = false, -- Toggle deleting the shift record in MySQL when the player ends their shift.
         CacheRefreshInterval = 3600000, -- Interval for refreshing the cache for player wage rates (set at 1 hour in milliseconds as default)
 
-        UseDiscordRoles = false,
-        StaticPayratePerMinute = 1.0,
+        UseDiscordRoles = false, -- Toggle using Discord API
+        StaticPayratePerMinute = 1.0, -- Standard payrate for all shifts regardless or role/rank per minute
         
         --====================== DISCORD ROLES ======================--
         DiscordRoles = {
