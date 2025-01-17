@@ -97,6 +97,7 @@ your server setup.</p>
         Debug = true,
         PaymentCurrency = "$", -- Choose whatever currency you'd like $, £, YEN
         DeleteRecordOnEndShift = false, -- Toggle deleting the shift record in MySQL when the player ends their shift.
+        CacheRefreshInterval = 3600000, -- Interval for refreshing the cache for player wage rates (set at 1 hour in milliseconds as default)
 
         --====================== DISCORD ROLES ======================--
         DiscordRoles = {
