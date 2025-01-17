@@ -50,25 +50,34 @@ function GetWagePerMinute(src)
         return wageCache[src]  -- Return cached value if available
     end
 
-    local playerRoles = exports.night_discordapi:GetDiscordMemberRoles(src)
     local wagePerMinute = 0 -- Default wage per minute
-
-    if playerRoles then
-        for _, roleConfig in ipairs(Config.DiscordRoles) do
-            -- Check if the role is in the player's roles array
-            for _, playerRole in ipairs(playerRoles) do
-                if playerRole == roleConfig.DiscordRoleName then
-                    -- Update wagePerMinute with the highest pay rate
-                    wagePerMinute = math.max(wagePerMinute, roleConfig.PayratePerMinute)
-                    if Config.Debug then
-                        print("[INFO] Wage per minute for player " .. src .. " updated to " .. Config.PaymentCurrency .. wagePerMinute .. " for role " .. roleConfig.DiscordRoleName)
+    
+    if Config.UseDiscordRoles then
+        local playerRoles = exports.night_discordapi:GetDiscordMemberRoles(src)
+    
+        if playerRoles then
+            for _, roleConfig in ipairs(Config.DiscordRoles) do
+                -- Check if the role is in the player's roles array
+                for _, playerRole in ipairs(playerRoles) do
+                    if playerRole == roleConfig.DiscordRoleName then
+                        -- Update wagePerMinute with the highest pay rate
+                        wagePerMinute = math.max(wagePerMinute, roleConfig.PayratePerMinute)
+                        if Config.Debug then
+                            print("[INFO] Wage per minute for player " .. src .. " updated to " .. Config.PaymentCurrency .. wagePerMinute .. " for role " .. roleConfig.DiscordRoleName)
+                        end
                     end
                 end
             end
+        else
+            if Config.Debug then
+                print("[ERROR] Failed to retrieve Discord roles for player with source " .. src)
+            end
         end
     else
+        wagePerMinute = Config.StaticPayratePerMinute
+
         if Config.Debug then
-            print("[ERROR] Failed to retrieve Discord roles for player with source " .. src)
+            print("[INFO] Wage per minute for player " .. src .. " updated to " .. Config.PaymentCurrency .. wagePerMinute .. ". Static Payrate")
         end
     end
 
@@ -145,20 +154,25 @@ AddEventHandler('ers-paychecks:startingShift', function(source)
 	local src = source
     local playerId = GetFiveMIdentifier(src)
 
-    if PlayerHasDiscordRole(src) then
-        if playerId then
+    if playerId then
+        if Config.UseDiscordRoles then
+            if PlayerHasDiscordRole(src) then
+                -- Add a new shift to track
+                StartTrackingPlayerShift(src, playerId)
+            else
+                if Config.Debug then
+                    -- Player isn't in any Discord Role defined in the config, don't notify them and print to console
+                    print('[WARN] Player with source ' .. src .. ' is not in any defined Discord role. Check the config file if you think this is a mistake')
+                end
+            end
+        else
             -- Add a new shift to track
             StartTrackingPlayerShift(src, playerId)
-        else
-            if Config.Debug then
-                -- Unable to obtain the player's FiveM identifier... this shouldn't be possible
-                print('[ERROR] Unable to obtain player FiveM identifier')
-            end
         end
     else
         if Config.Debug then
-            -- Player isn't in any Discord Role defined in the config, don't notify them and print to console
-            print('[WARN] Player with source ' .. src .. ' is not in any defined Discord role. Check the config file if you think this is a mistake')
+            -- Unable to obtain the player's FiveM identifier... this shouldn't be possible
+            print('[ERROR] Unable to obtain player FiveM identifier')
         end
     end
 end)

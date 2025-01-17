@@ -3,7 +3,7 @@ games {'gta5'}
 
 author 'Ryneide'
 description 'Paycheck system to pay your players while on-shift using Night\'s Emergency Response Simulator'
-version '1.0.0'
+version '1.0.5'
 lua54 'yes'
 
 server_only 'yes'
