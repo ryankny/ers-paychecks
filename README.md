@@ -141,10 +141,10 @@ your server setup.</p>
 7. Note: If you are not using Night's MDT Software, you can still add the server event triggers to your own script
    ```sh
    -- Event when starting a shift
-   TriggerServerEvent("ers-paychecks:startingShift", src)
+   TriggerServerEvent("ers-paychecks:startingShift", playerServerId)
 
    -- Event when ending a shift
-   TriggerServerEvent("ers-paychecks:endingShift", src)
+   TriggerServerEvent("ers-paychecks:endingShift", playerServerId)
    ```
 8. Ensure you run the `add_me_sql.sql` code into your database to create the appropriate table the script uses.
    ```sh
