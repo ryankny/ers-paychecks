@@ -5,5 +5,5 @@ CREATE TABLE `ers_shift_times` (
     `end_time` VARCHAR(20) DEFAULT NULL,
     `payment` INT DEFAULT NULL,
     `rate_per_minute` DECIMAL(10, 2) DEFAULT NULL,
-    `shift_duration` INT DEFAULT NULL,
+    `shift_duration` INT DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -5,7 +5,7 @@ if not Config.CacheRefreshInterval then
 end
 
 -- Function to clear old wage rate cache entries
-local function ClearOldCacheEntries()
+function ClearOldCacheEntries()
     for playerSrc, _ in pairs(wageCache) do
         -- Check if the player is still connected, if not, clear their cache
         if not GetPlayerPing(playerSrc) then  -- GetPlayerPing returns nil if player is not online
@@ -17,13 +17,13 @@ end
 -- Thread to clear the wage rate cache every hour
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(Config.CacheRefreshInterval)  -- 1 hour in milliseconds
+        Citizen.Wait(Config.CacheRefreshInterval)
         ClearOldCacheEntries()
     end
 end)
 
 -- Function to check if the player is part of any defined Discord Role
-local function PlayerHasDiscordRole(src)
+function PlayerHasDiscordRole(src)
     local rolesForCheck = {}
     for _, role in ipairs(Config.DiscordRoles) do
         table.insert(rolesForCheck, role.DiscordRoleName)
@@ -32,7 +32,7 @@ local function PlayerHasDiscordRole(src)
 end
 
 -- Function to get the FiveM identifier for a player
-local function GetFiveMIdentifier(src)
+function GetFiveMIdentifier(src)
     local identifiers = GetPlayerIdentifiers(src)
     for _, id in ipairs(identifiers) do
         if string.sub(id, 1, string.len("fivem:")) == "fivem:" then
@@ -45,7 +45,7 @@ end
 -- Function to calculate the players specific wage per minute depending on their role
 -- and choosing the specific wage that is the highest in value if the user has more
 -- than one role
-local function GetWagePerMinute(src)
+function GetWagePerMinute(src)
     if wageCache[src] then
         return wageCache[src]  -- Return cached value if available
     end
@@ -78,7 +78,7 @@ local function GetWagePerMinute(src)
 end
 
 -- Function to delete shift records from database
-local function DeleteShiftRecord(src, playerId, startTime)
+function DeleteShiftRecord(src, playerId, startTime)
     exports['oxmysql']:execute('DELETE FROM ers_shift_times WHERE player_id = @playerID AND start_time = @startTime', {
         ['@playerID'] = playerId, 
         ['@startTime'] = startTime
@@ -92,7 +92,7 @@ local function DeleteShiftRecord(src, playerId, startTime)
 end
 
 -- Function to update shift records in database if you want to persist shift data
-local function UpdateShiftRecord(src, playerId, startTime, endTime, payment, wagePerMinute, minutesWorked)
+function UpdateShiftRecord(src, playerId, startTime, endTime, payment, wagePerMinute, minutesWorked)
     exports['oxmysql']:execute('UPDATE ers_shift_times SET end_time = @endTime, payment = @payment, rate_per_minute = @wagePerMinute, shift_duration = @minutesWorked WHERE player_id = @playerID AND start_time = @startTime', {
         ['@playerID'] = playerId, 
         ['@startTime'] = startTime,
@@ -110,29 +110,38 @@ local function UpdateShiftRecord(src, playerId, startTime, endTime, payment, wag
 end
 
 -- Function to pay the player for the shift they have just ended
-local function PayPlayerForShift(src, payment, minutesWorked)
+function PayPlayerForShift(src, payment, minutesWorked)
     if Config.Framework == "QB" then
         local QBCore = exports['qb-core']:GetCoreObject()
         local player = QBCore.Functions.GetPlayer(src)
 
         player.Functions.AddMoney('bank', payment, 'Paycheck') -- Feel free to change the reason i.e. ("Police Pay")
+
+        -- Here is an example of also adding transaction data to your banking system (whichever one you use)
+        -- this is optional of course
+        --TriggerEvent('okokBanking:AddTransferTransactionFromSocietyToP', payment, "GOV", "State of San Andreas", playerId, player.PlayerData.charinfo.firstname..' '..player.PlayerData.charinfo.lastname)
+        --TriggerClientEvent('okokBanking:updateTransactions', src, player.PlayerData.money.bank, player.PlayerData.money.cash)
+
     elseif Config.Framework == "ESX" then
         local ESX = exports["es_extended"]:getSharedObject()
         local player = ESX.GetPlayerFromId(src)
 
         player.addAccountMoney('bank', payment) -- No reason needed
+
     elseif Config.Framework == "Standalone" then
         -- Implement your own standalone payment system here or simply have it as a nice to have feature
         -- without all of the payment mechanics.
-    end
 
-    -- Show notification to player to let them know how much they've earned
-    TriggerClientEvent('chatMessage', src, "State of San Andreas", "success", "You've been paid " .. Config.PaymentCurrency .. payment .. " for your shift (" .. minutesWorked .. " mins)")
+        -- src = PlayerServerID
+        -- payment = Amount being paid
+        -- minutesWorked = Minutes worked for that shift
+        TriggerClientEvent('chatMessage', src, "State of San Andreas", "success", "You've been paid " .. Config.PaymentCurrency .. payment .. " for your shift (" .. minutesWorked .. " mins)")
+    end
 end
 
 -- Triggers when the player starts their shift within ERS
 RegisterServerEvent('ers-paychecks:startingShift')
-AddEventHandler('ers-paychecks:startingShift', function()
+AddEventHandler('ers-paychecks:startingShift', function(source)
 	local src = source
     local playerId = GetFiveMIdentifier(src)
 
@@ -172,7 +181,7 @@ AddEventHandler('playerDropped', function(reason)
 end)
 
 RegisterServerEvent('ers-paychecks:endingShift')
-AddEventHandler('ers-paychecks:endingShift', function()
+AddEventHandler('ers-paychecks:endingShift', function(source)
     local src = source
 	local playerId = GetFiveMIdentifier(src)
 	
@@ -187,7 +196,7 @@ AddEventHandler('ers-paychecks:endingShift', function()
 end)
 
 -- Function to insert a record into the ers_shift_times table to start tracking player shift times
-local function StartTrackingPlayerShift(src, playerId)
+function StartTrackingPlayerShift(src, playerId)
     local startTime = os.time() -- Shift start time
 
     exports['oxmysql']:execute('INSERT INTO ers_shift_times (player_id, start_time) VALUES (@playerID, @startTime)', 
@@ -216,7 +225,7 @@ local function StartTrackingPlayerShift(src, playerId)
 end
 
 -- Function to calculate and process the specific players paycheck
-local function ProcessPlayerShiftPaycheck(src, playerId, endTime)
+function ProcessPlayerShiftPaycheck(src, playerId, endTime)
     local endTime = endTime or os.time() -- Shift end time
     local wagePerMinute = GetWagePerMinute(src) -- Calculate wage per minute based on Discord role
 
@@ -231,11 +240,6 @@ local function ProcessPlayerShiftPaycheck(src, playerId, endTime)
 
             if payment > 0 then
                 PayPlayerForShift(src, payment, minutesWorked)
-            
-                -- Here is an example of also adding transaction data to your banking system (whichever one you use)
-                -- this is optional of course
-                --TriggerEvent('okokBanking:AddTransferTransactionFromSocietyToP', payment, "GOV", "State of San Andreas", playerId, player.PlayerData.charinfo.firstname..' '..player.PlayerData.charinfo.lastname)
-                --TriggerClientEvent('okokBanking:updateTransactions', src, player.PlayerData.money.bank, player.PlayerData.money.cash)
             end
 
             print('[INFO] Shift ended for player ' .. playerId .. '. Paid: ' .. Config.PaymentCurrency .. payment .. '.')

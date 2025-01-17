@@ -119,19 +119,23 @@ your server setup.</p>
         },
     }
    ```
-4. If you are using Night's MDT System, go to `client` -> `c_functions.lua` and add the server event to the `OnUserStartedShift()` function
+4. If you are using Night's MDT System, go to `client` -> `c_functions.lua` and replace the `OnUserStartedShift()` function
    ```sh
    function OnUserStartedShift()
-        -- Add the server event for when the user starts their shift
-        TriggerServerEvent("ers-paychecks:startingShift", src)
-    end
+      local ped = PlayerPedId()
+      local playerServerId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(ped))
+
+      TriggerServerEvent("ers-paychecks:startingShift", playerServerId) -- Ensure this is the server ID
+   end
    ```
 5. In the same file, do the same for the `OnUserEndedShift()` function
    ```sh
-   function OnUserStoppedShift()
-        -- Add the server event for when the user ends their shift
-        TriggerServerEvent("ers-paychecks:endingShift", src)
-    end
+   function OnUserStartedShift()
+      local ped = PlayerPedId()
+      local playerServerId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(ped))
+
+      TriggerServerEvent("ers-paychecks:endingShift", playerServerId) -- Ensure this is the server ID
+   end
    ```
 6. Make sure to restart `night_shifts` resource before running `ers-paychecks`
 7. Note: If you are not using Night's MDT Software, you can still add the server event triggers to your own script
@@ -151,7 +155,7 @@ your server setup.</p>
         `end_time` VARCHAR(20) DEFAULT NULL,
         `payment` INT DEFAULT NULL,
         `rate_per_minute` DECIMAL(10, 2) DEFAULT NULL,
-        `shift_duration` INT DEFAULT NULL,
+        `shift_duration` INT DEFAULT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
    ```
 
