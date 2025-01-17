@@ -109,33 +109,7 @@ AddEventHandler('ers-paychecks:startingShift', function()
 
     if PlayerHasDiscordRole(src) then
         if playerId then
-            local startTime = os.time() -- Shift start time
-
-            -- Insert a row into the custom created ers_shift_times table to track shift time
-            exports['oxmysql']:execute('INSERT INTO ers_shift_times (player_id, start_time) VALUES (@playerID, @startTime)', 
-                {
-                    ['@playerID'] = playerId, 
-                    ['@startTime'] = startTime
-                }, 
-                function(result)
-                    -- Notify the player of the result
-                    if result then
-                        if Config.Debug then
-                            print('[INFO] ' .. playerId .. ' has started their shift at ' .. os.date("%c", startTime) .. ' and this is now being tracked for their paycheck')
-                        end
-                        
-                        -- Feel free to edit this and add your own notification alert for the player
-                        TriggerClientEvent('chatMessage', src, "State of San Andreas", "success", "You'll be paid when you end your shift")
-                    else
-                        if Config.Debug then
-                            print('[ERROR] Failed to start shift for player ' .. playerId)
-                        end
-
-                        -- Feel free to edit this and add your own notification alert for the player
-                        TriggerClientEvent('chatMessage', src, "State of San Andreas", "error", "Unable to log your shift time for payment. Please contact an admin")
-                    end
-                end
-            )
+            StartTrackingPlayerShift(src, playerId)
         else
             if Config.Debug then
                 -- Unable to obtain the player's FiveM identifier... this shouldn't be possible
@@ -156,45 +130,84 @@ AddEventHandler('ers-paychecks:endingShift', function()
 	local playerId = GetFiveMIdentifier(src)
 	
 	if playerId then
-		local endTime = os.time() -- Shift end time
-		wagePerMinute = GetWagePerMinute(src) -- Calculate wage per minute based on Discord role
-	
-		exports['oxmysql']:execute('SELECT start_time FROM ers_shift_times WHERE player_id = @playerID ORDER BY start_time DESC LIMIT 1', {
-			['@playerID'] = playerId
-		}, function(result)
-			if result[1] then
-				local startTime = result[1].start_time
-				local shiftDuration = endTime - startTime
-				local minutesWorked = math.floor(shiftDuration / 60)
-				local payment = minutesWorked * wagePerMinute
-
-				if payment > 0 then
-                    PayPlayerForShift(src, payment)
-				
-                    -- Here is an example of also adding transaction data to your banking system (whichever one you use)
-                    -- this is optional of course
-					--TriggerEvent('okokBanking:AddTransferTransactionFromSocietyToP', payment, "GOV", "State of San Andreas", playerId, player.PlayerData.charinfo.firstname..' '..player.PlayerData.charinfo.lastname)
-					--TriggerClientEvent('okokBanking:updateTransactions', src, player.PlayerData.money.bank, player.PlayerData.money.cash)
-				end
-
-                print('[INFO] Shift ended for player ' .. playerId .. '. Paid: ' Config.PaymentCurrency .. payment .. '.')
-
-                if Config.Debug then
-                    print('[INFO] Rate: ' Config.PaymentCurrency .. wagePerMinute .. ' per minute')
-                    print('[INFO] Minutes Worked: ' .. minutesWorked .. ' minutes')
-                end
-
-                if Config.DeleteRecordOnEndShift then
-                    -- Delete this shift record to *clean up* DB table
-                    DeleteShiftRecord(src, playerId, startTime)
-                else
-                    -- If you want to persist shift records (I may add NUI in the future or some way of viewing these)
-                    -- What would be really cool if Night decided to integrate this into the MDT to see all of your shifts!
-                    UpdateShiftRecord(src, playerId, startTime, endTime, payment, wagePerMinute, minutesWorked)
-                end
-			else
-				print('[WARN] No active shift found for player ' .. playerId)
-			end
-		end)
+        ProcessPlayerShiftPaycheck(src, playerId, wagePerMinute)
+    else
+        if Config.Debug then
+            -- Unable to obtain the player's FiveM identifier... this shouldn't be possible
+            print('[ERROR] Unable to obtain player FiveM identifier')
+        end
 	end
 end)
+
+-- Function to insert a record into the ers_shift_times table to start tracking player shift times
+local function StartTrackingPlayerShift(src, playerId)
+    local startTime = os.time() -- Shift start time
+
+    exports['oxmysql']:execute('INSERT INTO ers_shift_times (player_id, start_time) VALUES (@playerID, @startTime)', 
+    {
+        ['@playerID'] = playerId, 
+        ['@startTime'] = startTime
+    }, 
+    function(result)
+        -- Notify the player of the result
+        if result then
+            if Config.Debug then
+                print('[INFO] ' .. playerId .. ' has started their shift at ' .. os.date("%c", startTime) .. ' and this is now being tracked for their paycheck')
+            end
+            
+            -- Feel free to edit this and add your own notification alert for the player
+            TriggerClientEvent('chatMessage', src, "State of San Andreas", "success", "You'll be paid when you end your shift")
+        else
+            if Config.Debug then
+                print('[ERROR] Failed to start shift for player ' .. playerId)
+            end
+
+            -- Feel free to edit this and add your own notification alert for the player
+            TriggerClientEvent('chatMessage', src, "State of San Andreas", "error", "Unable to log your shift time for payment. Please contact an admin")
+        end
+    end)
+end
+
+-- Function to calculate and process the specific players paycheck
+local function ProcessPlayerShiftPaycheck(src, playerId, wagePerMinute)
+    local endTime = os.time() -- Shift end time
+    wagePerMinute = GetWagePerMinute(src) -- Calculate wage per minute based on Discord role
+
+    exports['oxmysql']:execute('SELECT start_time FROM ers_shift_times WHERE player_id = @playerID AND payment IS NULL ORDER BY start_time DESC LIMIT 1', {
+        ['@playerID'] = playerId
+    }, function(result)
+        if result[1] then
+            local startTime = result[1].start_time
+            local shiftDuration = endTime - startTime
+            local minutesWorked = math.floor(shiftDuration / 60)
+            local payment = minutesWorked * wagePerMinute
+
+            if payment > 0 then
+                PayPlayerForShift(src, payment)
+            
+                -- Here is an example of also adding transaction data to your banking system (whichever one you use)
+                -- this is optional of course
+                --TriggerEvent('okokBanking:AddTransferTransactionFromSocietyToP', payment, "GOV", "State of San Andreas", playerId, player.PlayerData.charinfo.firstname..' '..player.PlayerData.charinfo.lastname)
+                --TriggerClientEvent('okokBanking:updateTransactions', src, player.PlayerData.money.bank, player.PlayerData.money.cash)
+            end
+
+            print('[INFO] Shift ended for player ' .. playerId .. '. Paid: ' Config.PaymentCurrency .. payment .. '.')
+
+            if Config.Debug then
+                print('[INFO] Rate: ' Config.PaymentCurrency .. wagePerMinute .. ' per minute')
+                print('[INFO] Minutes Worked: ' .. minutesWorked .. ' minutes')
+            end
+
+            if Config.DeleteRecordOnEndShift then
+                -- Delete this shift record to *clean up* DB table
+                DeleteShiftRecord(src, playerId, startTime)
+            else
+                -- If you want to persist shift records (I may add NUI in the future or some way of viewing these)
+                -- It would be really cool if Night decided to integrate this into the MDT to see all of your shifts!
+                UpdateShiftRecord(src, playerId, startTime, endTime, payment, wagePerMinute, minutesWorked)
+            end
+        else
+            print('[WARN] No active shift found for player ' .. playerId)
+        end
+    end)
+end
