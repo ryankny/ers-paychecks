@@ -140,7 +140,7 @@ your server setup.</p>
    ```
 5. In the same file, do the same for the `OnUserEndedShift()` function
    ```sh
-   function OnUserStartedShift()
+   function OnUserEndedShift()
       local ped = PlayerPedId()
       local playerServerId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(ped))
 
